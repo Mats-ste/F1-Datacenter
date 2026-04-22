@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>F1 Hub</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+
+<body>
+  <div class="app">
+
+    <!-- ── Auth Modal ───────────────────────────────────── -->
+    <div id="auth-overlay" class="auth-overlay hidden">
+      <div class="auth-modal">
+        <button class="auth-close" id="auth-close" aria-label="Close">✕</button>
+
+        <div class="auth-logo">F1</div>
+        <h2 class="auth-heading" id="auth-heading">Sign in to comment</h2>
+        <p class="auth-sub" id="auth-sub">Join the conversation about every race</p>
+
+        <div class="auth-tabs">
+          <button class="auth-tab active" data-mode="login">Log in</button>
+          <button class="auth-tab" data-mode="register">Register</button>
+        </div>
+
+        <div class="auth-form">
+          <input class="auth-input" id="auth-username" type="text"
+            placeholder="Username" maxlength="40" autocomplete="username" />
+          <input class="auth-input" id="auth-password" type="password"
+            placeholder="Password" maxlength="100" autocomplete="current-password" />
+          <div class="auth-error hidden" id="auth-error"></div>
+          <button class="auth-submit" id="auth-submit">Log in</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Header ───────────────────────────────────────── -->
+    <header class="hero">
+      <div class="container hero-inner">
+        <div class="hero-text">
+          <div class="hero-eyebrow">&#9872; Race Commentary &amp; Standings</div>
+          <h1 class="hero-title">F1 Hub</h1>
+          <p class="hero-sub">Select a race to view results and leave your comments</p>
+        </div>
+        <div class="hero-auth" id="hero-auth"></div>
+      </div>
+    </header>
+
+    <!-- ── Nav ──────────────────────────────────────────── -->
+    <nav class="tab-bar">
+      <div class="container tab-bar-inner">
+        <button class="tab-btn active" data-tab="races">Races</button>
+        <button class="tab-btn" data-tab="drivers">Drivers</button>
+        <button class="tab-btn" data-tab="teams">Constructors</button>
+      </div>
+    </nav>
+
+    <!-- ── Main ─────────────────────────────────────────── -->
+    <main class="content container">
+
+      <!-- Races -->
+      <section id="tab-races" class="tab-panel active">
+
+        <div id="races-grid" class="race-grid"></div>
+
+        <div id="race-detail" class="race-detail hidden">
+
+          <button class="back-btn" id="back-btn">← All Races</button>
+
+          <header class="detail-header">
+            <div class="detail-meta">
+              <span id="detail-round"></span>
+              <span id="detail-sub"></span>
+            </div>
+            <h2 id="detail-title"></h2>
+          </header>
+
+          <section class="results-section">
+            <h3 class="section-label">Race Results</h3>
+            <div id="results-container"></div>
+          </section>
+
+          <section class="comments-section">
+            <h3 class="section-label">Discussion</h3>
+            <div id="comments-list"></div>
+          </section>
+
+          <section class="comment-area">
+            <!-- Comment form (shown when logged in) -->
+            <div class="comment-form" id="comment-form">
+              <h3 class="section-label">Leave a comment</h3>
+              <div class="comment-user-row" id="comment-user-row"></div>
+              <textarea
+                class="form-textarea"
+                id="comment-input"
+                placeholder="What did you think about this race?"
+                maxlength="1000"
+              ></textarea>
+              <div class="form-error hidden" id="form-error"></div>
+              <button class="submit-btn" id="submit-btn">Post Comment</button>
+            </div>
+
+            <!-- Login prompt (shown when logged out) -->
+            <div class="login-prompt" id="login-prompt">
+              <p>Sign in to join the conversation</p>
+              <button class="login-prompt-btn" id="login-prompt-btn">Log in or Register</button>
+            </div>
+          </section>
+
+        </div>
+      </section>
+
+      <!-- Drivers -->
+      <section id="tab-drivers" class="tab-panel hidden">
+        <h2 class="section-label">Driver Championship</h2>
+        <div class="table-wrap">
+          <table class="data-table" id="drivers-table">
+            <thead>
+              <tr>
+                <th>Pos</th>
+                <th>Driver</th>
+                <th>Nat</th>
+                <th>Team</th>
+                <th>#</th>
+                <th>Pts</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Constructors -->
+      <section id="tab-teams" class="tab-panel hidden">
+        <h2 class="section-label">Constructor Championship</h2>
+        <div class="table-wrap">
+          <table class="data-table" id="teams-table">
+            <thead>
+              <tr>
+                <th>Pos</th>
+                <th>Constructor</th>
+                <th>Engine</th>
+                <th>Pts</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
