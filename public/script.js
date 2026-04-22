@@ -1,15 +1,14 @@
-/* ── Team colours ────────────────────────────────────── */
 const TEAM_COLORS = {
-  3: '#3671C6', 4: '#E8002D', 1: '#FF8000', 2: '#27F4D2',
-  9: '#52E252', 5: '#64C4FF', 8: '#e0e0e0', 6: '#1534cc',
-  10: '#FF87EE', 7: '#229971'
+  1: '#FF8000', 2: '#27F4D2', 3: '#3671C6', 4: '#E8002D',
+  5: '#64C4FF', 6: '#1534cc', 7: '#229971', 8: '#e0e0e0',
+  9: '#52E252', 10: '#FF87EE'
 };
 
-/* ── State ───────────────────────────────────────────── */
 let currentRaceId = null;
 let currentUser   = null;
 
-/* ── API helper ──────────────────────────────────────── */
+// ── Helpers ──────────────────────────────────────────────
+
 async function api(path, opts = {}) {
   const res = await fetch(path, opts);
   if (!res.ok) {
@@ -19,160 +18,107 @@ async function api(path, opts = {}) {
   return res.json();
 }
 
-/* ── Formatting helpers ──────────────────────────────── */
-function formatDate(dateStr) {
-  if (!dateStr) return '—';
-  return new Date(dateStr).toLocaleDateString('en-GB', {
-    day: 'numeric', month: 'long', year: 'numeric'
-  });
+const $ = id => document.getElementById(id);
+const esc = str => String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const initials = name => name.slice(0, 2).toUpperCase();
+const teamDot = id => `<span class="team-dot" style="background:${TEAM_COLORS[id] || '#888'}"></span>`;
+const posClass = p => p === 1 ? 'gold' : p === 2 ? 'silver' : p === 3 ? 'bronze' : '';
+const posLabel = p => p === 1 ? '🥇' : p === 2 ? '🥈' : p === 3 ? '🥉' : p;
+
+function formatDate(d) {
+  return d ? new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : '—';
 }
 
-function timeAgo(isoStr) {
-  const diff  = Date.now() - new Date(isoStr).getTime();
-  const mins  = Math.floor(diff / 60000);
-  const hours = Math.floor(mins / 60);
-  const days  = Math.floor(hours / 24);
-  if (mins < 2)   return 'just now';
-  if (mins < 60)  return `${mins}m ago`;
-  if (hours < 24) return `${hours}h ago`;
-  return `${days}d ago`;
+function timeAgo(iso) {
+  const mins = Math.floor((Date.now() - new Date(iso)) / 60000);
+  if (mins < 2)    return 'just now';
+  if (mins < 60)   return `${mins}m ago`;
+  if (mins < 1440) return `${Math.floor(mins / 60)}h ago`;
+  return `${Math.floor(mins / 1440)}d ago`;
 }
 
-function posLabel(pos) {
-  if (pos === 1) return '🥇';
-  if (pos === 2) return '🥈';
-  if (pos === 3) return '🥉';
-  return pos;
-}
+// ── Auth ─────────────────────────────────────────────────
 
-function posClass(pos) {
-  if (pos === 1) return 'gold';
-  if (pos === 2) return 'silver';
-  if (pos === 3) return 'bronze';
-  return '';
-}
-
-function teamDot(teamId) {
-  const color = TEAM_COLORS[teamId] || '#888';
-  return `<span class="team-dot" style="background:${color}"></span>`;
-}
-
-function escapeHtml(str) {
-  return String(str)
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
-
-function userInitials(name) {
-  return name.slice(0, 2).toUpperCase();
-}
-
-/* ── Auth state ──────────────────────────────────────── */
 async function loadSession() {
-  try {
-    const data = await api('/api/me');
-    currentUser = data.user;
-  } catch {
-    currentUser = null;
-  }
-  renderAuthUI();
-  updateCommentSection();
+  try { currentUser = (await api('/api/me')).user; }
+  catch { currentUser = null; }
+  renderAuth();
 }
 
-function renderAuthUI() {
-  const heroAuth = document.getElementById('hero-auth');
+function renderAuth() {
+  const heroAuth = $('hero-auth');
   if (currentUser) {
     heroAuth.innerHTML = `
       <div class="auth-pill">
-        <div class="auth-avatar">${userInitials(currentUser.username)}</div>
-        <span class="auth-username">${escapeHtml(currentUser.username)}</span>
+        <div class="auth-avatar">${initials(currentUser.username)}</div>
+        <span class="auth-username">${esc(currentUser.username)}</span>
         <button class="auth-signout-btn" id="signout-btn">Sign out</button>
-      </div>
-    `;
-    document.getElementById('signout-btn').addEventListener('click', handleLogout);
+      </div>`;
+    $('signout-btn').onclick = async () => {
+      await api('/api/logout', { method: 'POST' });
+      currentUser = null;
+      renderAuth();
+    };
   } else {
-    heroAuth.innerHTML = `
-      <button class="hero-login-btn" id="hero-login-btn">Log in</button>
-    `;
-    document.getElementById('hero-login-btn').addEventListener('click', openAuthModal);
+    heroAuth.innerHTML = `<button class="hero-login-btn" id="hero-login-btn">Log in</button>`;
+    $('hero-login-btn').onclick = openAuthModal;
   }
-}
 
-function updateCommentSection() {
-  const form   = document.getElementById('comment-form');
-  const prompt = document.getElementById('login-prompt');
-  if (!form || !prompt) return;
-
+  const form   = $('comment-form');
+  const prompt = $('login-prompt');
+  if (!form) return;
   if (currentUser) {
     form.classList.remove('hidden');
     prompt.classList.add('hidden');
-    const row = document.getElementById('comment-user-row');
-    row.innerHTML = `
-      <div class="auth-avatar sm">${userInitials(currentUser.username)}</div>
-      <span class="posting-as">Posting as <strong>${escapeHtml(currentUser.username)}</strong></span>
-    `;
+    $('comment-user-row').innerHTML = `
+      <div class="auth-avatar sm">${initials(currentUser.username)}</div>
+      <span class="posting-as">Posting as <strong>${esc(currentUser.username)}</strong></span>`;
   } else {
     form.classList.add('hidden');
     prompt.classList.remove('hidden');
   }
 }
 
-async function handleLogout() {
-  await api('/api/logout', { method: 'POST' });
-  currentUser = null;
-  renderAuthUI();
-  updateCommentSection();
-}
+// ── Auth modal ───────────────────────────────────────────
 
-/* ── Auth Modal ──────────────────────────────────────── */
 let authMode = 'login';
 
 function openAuthModal() {
-  document.getElementById('auth-overlay').classList.remove('hidden');
-  document.getElementById('auth-username').focus();
+  $('auth-overlay').classList.remove('hidden');
+  $('auth-username').focus();
 }
 
 function closeAuthModal() {
-  document.getElementById('auth-overlay').classList.add('hidden');
-  document.getElementById('auth-error').classList.add('hidden');
-  document.getElementById('auth-error').textContent = '';
-  document.getElementById('auth-username').value = '';
-  document.getElementById('auth-password').value = '';
+  $('auth-overlay').classList.add('hidden');
+  $('auth-error').classList.add('hidden');
+  $('auth-username').value = $('auth-password').value = '';
 }
 
-document.getElementById('auth-close').addEventListener('click', closeAuthModal);
-document.getElementById('auth-overlay').addEventListener('click', (e) => {
-  if (e.target === document.getElementById('auth-overlay')) closeAuthModal();
-});
+$('auth-close').onclick = closeAuthModal;
+$('auth-overlay').onclick = e => { if (e.target === $('auth-overlay')) closeAuthModal(); };
+$('auth-password').onkeydown = e => { if (e.key === 'Enter') submitAuth(); };
+$('auth-submit').onclick = submitAuth;
 
 document.querySelectorAll('.auth-tab').forEach(btn => {
-  btn.addEventListener('click', () => {
+  btn.onclick = () => {
     authMode = btn.dataset.mode;
     document.querySelectorAll('.auth-tab').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
-    document.getElementById('auth-submit').textContent =
-      authMode === 'login' ? 'Log in' : 'Create account';
-    document.getElementById('auth-error').classList.add('hidden');
-  });
+    $('auth-submit').textContent = authMode === 'login' ? 'Log in' : 'Create account';
+    $('auth-error').classList.add('hidden');
+  };
 });
 
-document.getElementById('login-prompt-btn')?.addEventListener('click', openAuthModal);
-document.addEventListener('click', (e) => {
+document.addEventListener('click', e => {
   if (e.target.id === 'login-prompt-btn') openAuthModal();
 });
 
-document.getElementById('auth-submit').addEventListener('click', handleAuthSubmit);
-document.getElementById('auth-password').addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') handleAuthSubmit();
-});
+async function submitAuth() {
+  const username = $('auth-username').value.trim();
+  const password = $('auth-password').value;
+  const errEl = $('auth-error');
+  const btn   = $('auth-submit');
 
-async function handleAuthSubmit() {
-  const username = document.getElementById('auth-username').value.trim();
-  const password = document.getElementById('auth-password').value;
-  const errEl    = document.getElementById('auth-error');
-  const btn      = document.getElementById('auth-submit');
-
-  errEl.classList.add('hidden');
   if (!username || !password) {
     errEl.textContent = 'Please fill in all fields.';
     errEl.classList.remove('hidden');
@@ -181,18 +127,17 @@ async function handleAuthSubmit() {
 
   btn.disabled = true;
   btn.textContent = authMode === 'login' ? 'Signing in…' : 'Creating account…';
+  errEl.classList.add('hidden');
 
   try {
-    const endpoint = authMode === 'login' ? '/api/login' : '/api/register';
-    const data = await api(endpoint, {
+    const data = await api(authMode === 'login' ? '/api/login' : '/api/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, password })
     });
     currentUser = data.user;
     closeAuthModal();
-    renderAuthUI();
-    updateCommentSection();
+    renderAuth();
   } catch (err) {
     errEl.textContent = err.message;
     errEl.classList.remove('hidden');
@@ -202,39 +147,31 @@ async function handleAuthSubmit() {
   }
 }
 
-/* ── Tab switching ───────────────────────────────────── */
+// ── Tabs ─────────────────────────────────────────────────
+
 document.querySelectorAll('.tab-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    const tab = btn.dataset.tab;
-
-    // Update active tab button
+  btn.onclick = () => {
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-
-    // FIX: toggle hidden class (not just active) so panels actually show/hide
     document.querySelectorAll('.tab-panel').forEach(p => p.classList.add('hidden'));
-    document.getElementById(`tab-${tab}`).classList.remove('hidden');
-
-    if (tab === 'drivers') loadDrivers();
-    if (tab === 'teams')   loadTeams();
-    if (tab === 'races')   showRaceGrid();
-  });
+    btn.classList.add('active');
+    $(`tab-${btn.dataset.tab}`).classList.remove('hidden');
+    if (btn.dataset.tab === 'drivers') loadDrivers();
+    if (btn.dataset.tab === 'teams')   loadTeams();
+    if (btn.dataset.tab === 'races')   showRaceGrid();
+  };
 });
 
-document.getElementById('back-btn').addEventListener('click', showRaceGrid);
+$('back-btn').onclick = showRaceGrid;
 
-/* ── Races grid ──────────────────────────────────────── */
+// ── Races ────────────────────────────────────────────────
+
 async function loadRaces() {
-  const grid = document.getElementById('races-grid');
+  const grid = $('races-grid');
   grid.innerHTML = '<div class="skeleton" style="height:110px"></div>'.repeat(4);
-
   try {
     const races = await api('/api/races');
     grid.innerHTML = '';
-    if (!races.length) {
-      grid.innerHTML = '<p style="color:var(--muted)">No races found.</p>';
-      return;
-    }
+    if (!races.length) { grid.innerHTML = '<p style="color:var(--muted)">No races found.</p>'; return; }
     races.forEach(race => {
       const card = document.createElement('div');
       card.className = 'race-card';
@@ -247,11 +184,8 @@ async function loadRaces() {
           <span>📅 ${formatDate(race.race_date)}</span>
           ${race.circuit_length ? `<span>🏁 ${race.circuit_length} km</span>` : ''}
         </div>
-        <div class="comment-count">
-          <strong>${race.comment_count}</strong> comment${race.comment_count !== 1 ? 's' : ''}
-        </div>
-      `;
-      card.addEventListener('click', () => openRace(race.race_id));
+        <div class="comment-count"><strong>${race.comment_count}</strong> comment${race.comment_count !== 1 ? 's' : ''}</div>`;
+      card.onclick = () => openRace(race.race_id);
       grid.appendChild(card);
     });
   } catch (err) {
@@ -261,23 +195,16 @@ async function loadRaces() {
 
 function showRaceGrid() {
   currentRaceId = null;
-  document.getElementById('races-grid').classList.remove('hidden');
-  document.getElementById('race-detail').classList.add('hidden');
+  $('races-grid').classList.remove('hidden');
+  $('race-detail').classList.add('hidden');
   loadRaces();
 }
 
-/* ── Race detail ─────────────────────────────────────── */
 async function openRace(raceId) {
   currentRaceId = raceId;
-  document.getElementById('races-grid').classList.add('hidden');
-  const detail = document.getElementById('race-detail');
-  detail.classList.remove('hidden');
-
-  document.getElementById('detail-round').textContent = '';
-  document.getElementById('detail-title').textContent = 'Loading…';
-  document.getElementById('detail-sub').textContent = '';
-  document.getElementById('results-container').innerHTML = '';
-  document.getElementById('comments-list').innerHTML = '';
+  $('races-grid').classList.add('hidden');
+  $('race-detail').classList.remove('hidden');
+  $('detail-title').textContent = 'Loading…';
 
   try {
     const [race, results, comments] = await Promise.all([
@@ -286,192 +213,157 @@ async function openRace(raceId) {
       api(`/api/races/${raceId}/comments`)
     ]);
 
-    document.getElementById('detail-round').textContent =
-      `Round ${race.round_number}${race.has_sprint ? ' · Sprint Weekend' : ''}`;
-    document.getElementById('detail-title').textContent = race.race_name;
-    document.getElementById('detail-sub').textContent =
+    $('detail-round').textContent = `Round ${race.round_number}${race.has_sprint ? ' · Sprint Weekend' : ''}`;
+    $('detail-title').textContent = race.race_name;
+    $('detail-sub').textContent =
       [race.track_name, race.location, race.country].filter(Boolean).join(' · ')
       + (race.race_date ? ' · ' + formatDate(race.race_date) : '');
 
     renderResults(results);
     renderComments(comments);
-    updateCommentSection();
+    renderAuth();
   } catch (err) {
-    document.getElementById('detail-title').textContent = 'Error loading race';
-    document.getElementById('detail-sub').textContent = err.message;
+    $('detail-title').textContent = 'Error loading race';
+    $('detail-sub').textContent = err.message;
   }
 }
 
 function renderResults(results) {
-  const container = document.getElementById('results-container');
+  const container = $('results-container');
   if (!results.length) {
     container.innerHTML = '<p class="no-comments">No results yet — race upcoming.</p>';
     return;
   }
-  const rows = results.map(r => `
-    <tr>
-      <td class="pos-cell ${posClass(r.position)}">${posLabel(r.position)}</td>
-      <td>
-        <span class="driver-code">${r.driver_code}</span>
-        <span class="driver-full">${r.first_name} ${r.last_name}</span>
-      </td>
-      <td>${r.nationality || ''}</td>
-      <td>${teamDot(r.team_id)}${r.team_name}</td>
-      <td class="pts-cell">${r.points}</td>
-    </tr>
-  `).join('');
   container.innerHTML = `
     <div class="table-wrap" style="margin-bottom:1.5rem">
       <table class="data-table">
         <thead><tr><th>Pos</th><th>Driver</th><th>Nat</th><th>Team</th><th>Pts</th></tr></thead>
-        <tbody>${rows}</tbody>
+        <tbody>${results.map(r => `
+          <tr>
+            <td class="pos-cell ${posClass(r.position)}">${posLabel(r.position)}</td>
+            <td><span class="driver-code">${r.driver_code}</span> <span class="driver-full">${r.first_name} ${r.last_name}</span></td>
+            <td>${r.nationality || ''}</td>
+            <td>${teamDot(r.team_id)}${r.team_name}</td>
+            <td class="pts-cell">${r.points}</td>
+          </tr>`).join('')}
+        </tbody>
       </table>
-    </div>
-  `;
+    </div>`;
 }
 
+// ── Comments ─────────────────────────────────────────────
+
 function renderComments(comments) {
-  const list = document.getElementById('comments-list');
+  const list = $('comments-list');
   if (!comments.length) {
     list.innerHTML = '<p class="no-comments">No comments yet. Be the first!</p>';
     return;
   }
   list.innerHTML = comments.map(c => {
-    const isOwn = currentUser && currentUser.username === c.author;
-    const editedLabel = c.edited_at
-      ? `<span class="comment-edited">(edited)</span>` : '';
+    const isOwn = currentUser?.username === c.author;
     return `
-      <div class="comment-item" data-comment-id="${c.comment_id}">
+      <div class="comment-item" data-cid="${c.comment_id}">
         <div class="comment-header">
           <div class="comment-author-row">
-            <div class="auth-avatar sm">${userInitials(c.author)}</div>
-            <span class="comment-author">${escapeHtml(c.author)}</span>
-            ${editedLabel}
+            <div class="auth-avatar sm">${initials(c.author)}</div>
+            <span class="comment-author">${esc(c.author)}</span>
+            ${c.edited_at ? '<span class="comment-edited">(edited)</span>' : ''}
           </div>
           <div class="comment-header-right">
             <span class="comment-time">${timeAgo(c.created_at)}</span>
-            ${isOwn ? `<button class="comment-edit-btn" data-id="${c.comment_id}" title="Edit comment">✏️</button>` : ''}
+            ${isOwn ? `<button class="comment-edit-btn" title="Edit">✏️</button>` : ''}
           </div>
         </div>
-        <div class="comment-body" data-body-id="${c.comment_id}">${escapeHtml(c.body)}</div>
-        <div class="comment-edit-area hidden" data-edit-id="${c.comment_id}">
-          <textarea class="form-textarea comment-edit-textarea" rows="3">${escapeHtml(c.body)}</textarea>
+        <div class="comment-body">${esc(c.body)}</div>
+        <div class="comment-edit-area hidden">
+          <textarea class="form-textarea comment-edit-textarea" rows="3">${esc(c.body)}</textarea>
           <div class="comment-edit-actions">
-            <button class="submit-btn comment-save-btn" data-id="${c.comment_id}">Save</button>
-            <button class="comment-cancel-btn" data-id="${c.comment_id}">Cancel</button>
+            <button class="submit-btn comment-save-btn">Save</button>
+            <button class="comment-cancel-btn">Cancel</button>
           </div>
-          <div class="form-error hidden" data-edit-err="${c.comment_id}"></div>
+          <div class="form-error hidden"></div>
         </div>
-      </div>
-    `;
+      </div>`;
   }).join('');
 
-  // Wire up edit/save/cancel buttons
-  list.querySelectorAll('.comment-edit-btn').forEach(btn => {
-    btn.addEventListener('click', () => openEditMode(btn.dataset.id));
-  });
-  list.querySelectorAll('.comment-save-btn').forEach(btn => {
-    btn.addEventListener('click', () => saveEdit(btn.dataset.id));
-  });
-  list.querySelectorAll('.comment-cancel-btn').forEach(btn => {
-    btn.addEventListener('click', () => closeEditMode(btn.dataset.id));
-  });
-}
+  list.querySelectorAll('.comment-item').forEach(item => {
+    const cid     = item.dataset.cid;
+    const body    = item.querySelector('.comment-body');
+    const area    = item.querySelector('.comment-edit-area');
+    const ta      = item.querySelector('textarea');
+    const errEl   = item.querySelector('.form-error');
+    const editBtn  = item.querySelector('.comment-edit-btn');
+    const saveBtn  = item.querySelector('.comment-save-btn');
+    const cancelBtn = item.querySelector('.comment-cancel-btn');
 
-function openEditMode(commentId) {
-  document.querySelector(`[data-body-id="${commentId}"]`).classList.add('hidden');
-  document.querySelector(`[data-edit-id="${commentId}"]`).classList.remove('hidden');
-  document.querySelector(`[data-comment-id="${commentId}"] .comment-edit-btn`).classList.add('hidden');
-  const ta = document.querySelector(`[data-edit-id="${commentId}"] textarea`);
-  ta.focus();
-  ta.setSelectionRange(ta.value.length, ta.value.length);
-}
-
-function closeEditMode(commentId) {
-  document.querySelector(`[data-body-id="${commentId}"]`).classList.remove('hidden');
-  document.querySelector(`[data-edit-id="${commentId}"]`).classList.add('hidden');
-  document.querySelector(`[data-comment-id="${commentId}"] .comment-edit-btn`).classList.remove('hidden');
-  const errEl = document.querySelector(`[data-edit-err="${commentId}"]`);
-  errEl.classList.add('hidden');
-  errEl.textContent = '';
-}
-
-async function saveEdit(commentId) {
-  const ta    = document.querySelector(`[data-edit-id="${commentId}"] textarea`);
-  const errEl = document.querySelector(`[data-edit-err="${commentId}"]`);
-  const btn   = document.querySelector(`.comment-save-btn[data-id="${commentId}"]`);
-  const body  = ta.value.trim();
-
-  errEl.classList.add('hidden');
-  if (!body) {
-    errEl.textContent = 'Comment cannot be empty.';
-    errEl.classList.remove('hidden');
-    return;
-  }
-
-  btn.disabled = true;
-  btn.textContent = 'Saving…';
-
-  try {
-    await api(`/api/races/${currentRaceId}/comments/${commentId}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ body })
+    editBtn?.addEventListener('click', () => {
+      body.classList.add('hidden');
+      area.classList.remove('hidden');
+      editBtn.classList.add('hidden');
+      ta.focus();
+      ta.setSelectionRange(ta.value.length, ta.value.length);
     });
-    const comments = await api(`/api/races/${currentRaceId}/comments`);
-    renderComments(comments);
-  } catch (err) {
-    errEl.textContent = err.message;
-    errEl.classList.remove('hidden');
-    btn.disabled = false;
-    btn.textContent = 'Save';
-  }
+
+    cancelBtn?.addEventListener('click', () => {
+      body.classList.remove('hidden');
+      area.classList.add('hidden');
+      editBtn.classList.remove('hidden');
+      errEl.classList.add('hidden');
+    });
+
+    saveBtn?.addEventListener('click', async () => {
+      const text = ta.value.trim();
+      if (!text) { errEl.textContent = 'Comment cannot be empty.'; errEl.classList.remove('hidden'); return; }
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Saving…';
+      errEl.classList.add('hidden');
+      try {
+        await api(`/api/races/${currentRaceId}/comments/${cid}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ body: text })
+        });
+        renderComments(await api(`/api/races/${currentRaceId}/comments`));
+      } catch (err) {
+        errEl.textContent = err.message;
+        errEl.classList.remove('hidden');
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Save';
+      }
+    });
+  });
 }
 
-/* ── Post comment ────────────────────────────────────── */
-document.getElementById('submit-btn').addEventListener('click', async () => {
-  const body  = document.getElementById('comment-input').value.trim();
-  const errEl = document.getElementById('form-error');
-  const btn   = document.getElementById('submit-btn');
+$('submit-btn').onclick = async () => {
+  const input = $('comment-input');
+  const errEl = $('form-error');
+  const btn   = $('submit-btn');
+  const body  = input.value.trim();
 
   errEl.classList.add('hidden');
-  if (!body) { showFormError('Please write a comment.'); return; }
+  if (!body) { errEl.textContent = 'Please write a comment.'; errEl.classList.remove('hidden'); return; }
 
   btn.disabled = true;
   btn.textContent = 'Posting…';
-
   try {
-    const res = await fetch(`/api/races/${currentRaceId}/comments`, {
+    await api(`/api/races/${currentRaceId}/comments`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ body })
     });
-    if (!res.ok) {
-      const data = await res.json();
-      throw new Error(data.error || 'Failed to post comment');
-    }
-    document.getElementById('comment-input').value = '';
-    const comments = await api(`/api/races/${currentRaceId}/comments`);
-    renderComments(comments);
+    input.value = '';
+    renderComments(await api(`/api/races/${currentRaceId}/comments`));
   } catch (err) {
-    if (err.message === 'Login required') {
-      openAuthModal();
-    } else {
-      showFormError(err.message);
-    }
+    if (err.message === 'Login required') openAuthModal();
+    else { errEl.textContent = err.message; errEl.classList.remove('hidden'); }
   } finally {
     btn.disabled = false;
     btn.textContent = 'Post Comment';
   }
-});
+};
 
-function showFormError(msg) {
-  const errEl = document.getElementById('form-error');
-  errEl.textContent = msg;
-  errEl.classList.remove('hidden');
-}
+// ── Standings ────────────────────────────────────────────
 
-/* ── Drivers standings ───────────────────────────────── */
 async function loadDrivers() {
   const tbody = document.querySelector('#drivers-table tbody');
   tbody.innerHTML = '<tr><td colspan="6"><div class="skeleton"></div></td></tr>';
@@ -480,22 +372,17 @@ async function loadDrivers() {
     tbody.innerHTML = drivers.map(d => `
       <tr>
         <td class="pos-cell ${posClass(d.championship_position)}">${posLabel(d.championship_position)}</td>
-        <td>
-          <span class="driver-code">${d.driver_code}</span>
-          <span class="driver-full">${d.first_name} ${d.last_name}</span>
-        </td>
+        <td><span class="driver-code">${d.driver_code}</span> <span class="driver-full">${d.first_name} ${d.last_name}</span></td>
         <td>${d.nationality || ''}</td>
         <td>${teamDot(d.team_id)}${d.team_name || '—'}</td>
         <td style="color:var(--muted)">${d.racing_number}</td>
         <td class="pts-cell">${d.total_points}</td>
-      </tr>
-    `).join('');
+      </tr>`).join('');
   } catch (err) {
     tbody.innerHTML = `<tr><td colspan="6" style="color:var(--red)">${err.message}</td></tr>`;
   }
 }
 
-/* ── Teams standings ─────────────────────────────────── */
 async function loadTeams() {
   const tbody = document.querySelector('#teams-table tbody');
   tbody.innerHTML = '<tr><td colspan="4"><div class="skeleton"></div></td></tr>';
@@ -504,20 +391,15 @@ async function loadTeams() {
     tbody.innerHTML = teams.map(t => `
       <tr>
         <td class="pos-cell ${posClass(t.championship_position)}">${posLabel(t.championship_position)}</td>
-        <td>
-          ${teamDot(t.team_id)}
-          <strong style="font-weight:600">${t.team_name}</strong>
-          <span class="driver-full">${t.full_name}</span>
-        </td>
+        <td>${teamDot(t.team_id)}<strong>${t.team_name}</strong> <span class="driver-full">${t.full_name}</span></td>
         <td style="color:var(--muted);font-size:12px">${t.engine}</td>
         <td class="pts-cell">${t.total_points}</td>
-      </tr>
-    `).join('');
+      </tr>`).join('');
   } catch (err) {
     tbody.innerHTML = `<tr><td colspan="4" style="color:var(--red)">${err.message}</td></tr>`;
   }
 }
 
-/* ── Boot ────────────────────────────────────────────── */
+// ── Boot ─────────────────────────────────────────────────
 loadSession();
 loadRaces();

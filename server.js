@@ -19,6 +19,12 @@ app.use(session({
 // Initialize DB
 const db = new Database('f1.db');
 
+// Migrate: add edited_at to comments if it doesn't exist yet
+const cols = db.prepare("PRAGMA table_info(comments)").all().map(c => c.name);
+if (!cols.includes('edited_at')) {
+  db.prepare("ALTER TABLE comments ADD COLUMN edited_at TEXT").run();
+}
+
 // ── Auth helpers ─────────────────────────────────────────
 
 const crypto = require('crypto');
