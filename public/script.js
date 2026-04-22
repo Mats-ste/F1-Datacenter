@@ -271,7 +271,7 @@ function renderComments(comments) {
           </div>
           <div class="comment-header-right">
             <span class="comment-time">${timeAgo(c.created_at)}</span>
-            ${isOwn ? `<button class="comment-edit-btn" title="Edit">✏️</button>` : ''}
+            ${isOwn ? `<button class="comment-edit-btn" title="Edit">✏️</button><button class="comment-delete-btn" title="Delete">🗑️</button>` : ''}
           </div>
         </div>
         <div class="comment-body">${esc(c.body)}</div>
@@ -292,8 +292,9 @@ function renderComments(comments) {
     const area    = item.querySelector('.comment-edit-area');
     const ta      = item.querySelector('textarea');
     const errEl   = item.querySelector('.form-error');
-    const editBtn  = item.querySelector('.comment-edit-btn');
-    const saveBtn  = item.querySelector('.comment-save-btn');
+    const editBtn   = item.querySelector('.comment-edit-btn');
+    const deleteBtn = item.querySelector('.comment-delete-btn');
+    const saveBtn   = item.querySelector('.comment-save-btn');
     const cancelBtn = item.querySelector('.comment-cancel-btn');
 
     editBtn?.addEventListener('click', () => {
@@ -302,6 +303,16 @@ function renderComments(comments) {
       editBtn.classList.add('hidden');
       ta.focus();
       ta.setSelectionRange(ta.value.length, ta.value.length);
+    });
+
+    deleteBtn?.addEventListener('click', async () => {
+      if (!confirm('Delete this comment?')) return;
+      try {
+        await api(`/api/races/${currentRaceId}/comments/${cid}`, { method: 'DELETE' });
+        renderComments(await api(`/api/races/${currentRaceId}/comments`));
+      } catch (err) {
+        alert(err.message);
+      }
     });
 
     cancelBtn?.addEventListener('click', () => {

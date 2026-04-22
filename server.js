@@ -153,21 +153,15 @@ app.put('/api/races/:id/comments/:commentId', requireAuth, (req, res) => {
   res.json(updated);
 });
 
-app.get('/api/drivers', (req, res) => {
-  const rows = db.prepare(`
-    SELECT d.*, t.team_name, t.team_id FROM drivers d
-    LEFT JOIN teams t ON t.team_id = d.team_id
-    ORDER BY d.points DESC
-  `).all();
-  res.json(rows);
+app.delete('/api/races/:id/comments/:commentId', requireAuth, (req, res) => {
+  const comment = db.prepare('SELECT * FROM comments WHERE comment_id = ?').get(req.params.commentId);
+  if (!comment) return res.status(404).json({ error: 'Comment not found' });
+  if (comment.author !== req.session.username) return res.status(403).json({ error: 'Not your comment' });
+  db.prepare('DELETE FROM comments WHERE comment_id = ?').run(req.params.commentId);
+  res.json({ ok: true });
 });
 
-app.get('/api/teams', (req, res) => {
-  const rows = db.prepare('SELECT * FROM teams ORDER BY points DESC').all();
-  res.json(rows);
-});
-
-// ── Standings Routes (uses driver_standings / team_standings tables) ──
+// ── Standings Routes ─────────────────────────────────────
 
 app.get('/api/standings/drivers', (req, res) => {
   const rows = db.prepare(`
@@ -196,4 +190,4 @@ app.get('/api/standings/teams', (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`F1 Hub running at http://localhost:${PORT}`);
-});
+}); 

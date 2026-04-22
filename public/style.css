@@ -766,20 +766,14 @@ body {
 .auth-submit:hover { background: var(--red-dark); }
 .auth-submit:disabled { opacity: .6; cursor: not-allowed; }
 
-.auth-hint {
-  text-align: center;
-  font-size: 12px;
-  color: var(--muted);
-  margin-top: 14px;
-}
-
 .comment-header-right {
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-.comment-edit-btn {
+.comment-edit-btn,
+.comment-delete-btn {
   background: none;
   border: none;
   cursor: pointer;
@@ -791,8 +785,10 @@ body {
   line-height: 1;
 }
 
-.comment-item:hover .comment-edit-btn { opacity: 1; }
+.comment-item:hover .comment-edit-btn,
+.comment-item:hover .comment-delete-btn { opacity: 1; }
 .comment-edit-btn:hover { background: var(--border); }
+.comment-delete-btn:hover { background: #fde8e8; }
 
 .comment-edited {
   font-size: 11px;
